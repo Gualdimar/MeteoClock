@@ -48,6 +48,8 @@
 #define DISPLAY_TYPE 1      // тип дисплея: 1 - 2004 (большой), 0 - 1602 (маленький)
 #define DISPLAY_ADDR 0x27   // адрес платы дисплея: 0x27 или 0x3f. Если дисплей не работает - смени адрес! На самом дисплее адрес не указан
 
+#define VCC_CALIBRATION 0 // калибровка вольтметра
+
 // пределы отображения для графиков
 #define TEMP_MIN 15
 #define TEMP_MAX 35
@@ -57,6 +59,9 @@
 #define PRESS_MAX 800
 #define CO2_MIN 300
 #define CO2_MAX 4000
+
+// константа для вольтметра
+float MY_VCC_CONST = 1.081;
 
 // настройки отображений графиков
 byte MAX_ONDATA = 1 + 2 + 16 + 32; // максимальные показания графиков исходя из накопленных фактических (но в пределах лимитов) данных вместо указанных пределов, 0 - использовать фиксированные пределы (с)НР
@@ -87,6 +92,8 @@ byte MIN_ONDATA = 1 + 2 + 16 + 32; // минимальные показания 
 #define LED_G 6
 #define LED_B 5
 #define BTN_PIN 4
+
+#define BATTERY A7
 
 // библиотеки
 #include <Wire.h>
@@ -125,6 +132,8 @@ GTimer_ms brightTimer(2000);
 #include "GyverButton.h"
 GButton button(BTN_PIN, LOW_PULL, NORM_OPEN);
 
+int bat_vol;
+
 int8_t hrs, mins, secs;
 byte mode = 0;
 /*
@@ -145,6 +154,7 @@ byte dispHum;
 int dispPres;
 int dispCO2;
 int dispRain;
+int dispBat;
 
 // массивы графиков
 int tempHour[15], tempDay[15];
@@ -465,6 +475,8 @@ void setLED(byte color) {
 
 void setup() {
   Serial.begin(9600);
+  
+  if (VCC_CALIBRATION) vcc_cal();
 
   pinMode(BACKLIGHT, OUTPUT);
   pinMode(LED_COM, OUTPUT);
