@@ -22,16 +22,32 @@ void checkBrightness() {
 void modesTick() {
   button.tick();
   boolean changeFlag = false;
-  if (button.isClick()) {
-    mode++;
-
-#if (CO2_SENSOR == 1)
-    if (mode > 8) mode = 0;
-#else
-    if (mode > 6) mode = 0;
-#endif
-    changeFlag = true;
-  }
+  if (button.isSingle()) {
+        mode++;
+        if (mode > 8) mode = 0;
+  #if (CO2_SENSOR == 0 && mode == 1)
+        mode = 3;
+  #endif
+        changeFlag = true;
+    }
+    if (button.isDouble()) {                  // двойное нажатие (с)НР ----------------------------
+      if (mode > 0) {                         // Меняет пределы графика на установленные/фактические максимумы (с)НР
+        int bt = 1 << (mode - 1);
+        if ((MAX_ONDATA & bt) > 0) {
+          MAX_ONDATA = MAX_ONDATA - bt;
+        }
+        else {
+          MAX_ONDATA = MAX_ONDATA + bt;
+        }
+        if ((MIN_ONDATA & bt) > 0) {
+          MIN_ONDATA = MIN_ONDATA - bt;
+        }
+        else {
+          MIN_ONDATA = MIN_ONDATA + bt;
+        }
+      }
+      changeFlag = true;
+    }
   if (button.isHolded()) {
     mode = 0;
     changeFlag = true;

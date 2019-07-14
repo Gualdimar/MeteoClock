@@ -43,7 +43,7 @@
 #define DISP_MODE 2         // в правом верхнем углу отображать: 0 - год, 1 - день недели, 2 - секунды
 #define WEEK_LANG 1         // язык дня недели: 0 - английский, 1 - русский (транслит)
 #define DEBUG 0             // вывод на дисплей лог инициализации датчиков при запуске. Для дисплея 1602 не работает! Но дублируется через порт!
-#define PRESSURE 1          // 0 - график давления, 1 - график прогноза дождя (вместо давления). Не забудь поправить пределы гроафика
+#define PRESSURE 0          // 0 - график давления, 1 - график прогноза дождя (вместо давления). Не забудь поправить пределы гроафика
 #define CO2_SENSOR 1        // включить или выключить поддержку/вывод с датчика СО2 (1 вкл, 0 выкл)
 #define DISPLAY_TYPE 1      // тип дисплея: 1 - 2004 (большой), 0 - 1602 (маленький)
 #define DISPLAY_ADDR 0x27   // адрес платы дисплея: 0x27 или 0x3f. Если дисплей не работает - смени адрес! На самом дисплее адрес не указан
@@ -56,7 +56,18 @@
 #define PRESS_MIN 700
 #define PRESS_MAX 800
 #define CO2_MIN 300
-#define CO2_MAX 2000
+#define CO2_MAX 4000
+
+// настройки отображений графиков
+byte MAX_ONDATA = 1 + 2 + 16 + 32; // максимальные показания графиков исходя из накопленных фактических (но в пределах лимитов) данных вместо указанных пределов, 0 - использовать фиксированные пределы (с)НР
+byte MIN_ONDATA = 1 + 2 + 16 + 32; // минимальные показания графиков исходя из накопленных фактических (но в пределах лимитов) данных вместо указанных пределов, 0 - использовать фиксированные пределы (с)НР
+/* 1 - для графика температуры часовой, 2 - для графика температуры суточной (с)НР
+   4 - для графика влажности часовой, 8 - для графика влажности суточной (с)НР
+   16 - для графика давления часового, 32 - для графика давления суточного (с)НР
+   64 - для графика СО2 часового, 128 - для графика СО2 суточного (с)НР
+   для выборочных графиков значения нужно сложить (с)НР
+   например: для изменения пределов у графиков суточной температуры и суточного СО2 складываем 2 + 128 и устанавливаем значение 130 (можно ставить сумму) (с)НР
+*/
 
 // адрес BME280 жёстко задан в файле библиотеки Adafruit_BME280.h
 // стоковый адрес был 0x77, у китайского модуля адрес 0x76.
@@ -148,7 +159,7 @@ byte time_array[6];
 
 // символы
 // график
-byte row8[8] = {0b11111,  0b11111,  0b11111,  0b11111,  0b11111,  0b11111,  0b11111,  0b11111};
+byte rowS[8] = {0b00000,  0b00000,  0b00000,  0b00000,  0b10001,  0b01010,  0b00100,  0b00000}; // стрелка вниз (с)НР
 byte row7[8] = {0b00000,  0b11111,  0b11111,  0b11111,  0b11111,  0b11111,  0b11111,  0b11111};
 byte row6[8] = {0b00000,  0b00000,  0b11111,  0b11111,  0b11111,  0b11111,  0b11111,  0b11111};
 byte row5[8] = {0b00000,  0b00000,  0b00000,  0b11111,  0b11111,  0b11111,  0b11111,  0b11111};
@@ -328,7 +339,7 @@ void drawData() {
   }
 }
 
-void drawPlot(byte pos, byte row, byte width, byte height, int min_val, int max_val, int *plot_array, String label) {
+void drawPlot(byte pos, byte row, byte width, byte height, int min_val, int max_val, int *plot_array, String label, int stretch) {
   int max_value = -32000;
   int min_value = 32000;
 
@@ -336,6 +347,28 @@ void drawPlot(byte pos, byte row, byte width, byte height, int min_val, int max_
     if (plot_array[i] > max_value) max_value = plot_array[i];
     if (plot_array[i] < min_value) min_value = plot_array[i];
   }
+  
+  // меняем пределы графиков на предельные/фактические значения (в пределах установленных лимитов), одновременно рисуем указатель пределов (стрелочки вверх-вниз) (с)НР
+  lcd.setCursor(15, 0);
+  if ((MAX_ONDATA & (1 << (stretch - 1))) > 0) {    // побитовое сравнение 1 - растягиваем, 0 - не растягиваем (по указанным пределам) (с)НР
+    if (max_val >= max_value) max_val = max_value;
+    lcd.write(0b01011110);
+  }  else {
+    lcd.write(0);
+  }
+
+  lcd.setCursor(15, 3);
+  if ((MIN_ONDATA & (1 << (stretch - 1))) > 0) {    // побитовое сравнение 1 - растягиваем, 0 - не растягиваем (по указанным пределам) (с)НР
+    if (min_val <= min_value) min_val = min_value;
+    lcd.write(0);
+  } else {
+    lcd.write(0b01011110);
+  }
+  lcd.setCursor(15, 1); lcd.write(0b01111100);
+  lcd.setCursor(15, 2); lcd.write(0b01111100);
+
+  if (min_val >= max_val) max_val = min_val + 1;
+  
   lcd.setCursor(16, 0); lcd.print(max_value);
   lcd.setCursor(16, 1); lcd.print(label);
   lcd.setCursor(16, 2); lcd.print(plot_array[14]);
@@ -355,13 +388,14 @@ void drawPlot(byte pos, byte row, byte width, byte height, int min_val, int max_
     for (byte n = 0; n < height; n++) {     // для всех строк графика
       if (n < infill && infill > 0) {       // пока мы ниже уровня
         lcd.setCursor(i, (row - n));        // заполняем полными ячейками
-        lcd.write(0);
+        lcd.write(255);
       }
       if (n >= infill) {                    // если достигли уровня
         lcd.setCursor(i, (row - n));
-        if (fract > 0) lcd.write(fract);          // заполняем дробные ячейки
-        else lcd.write(16);                       // если дробные == 0, заливаем пустой
-        for (byte k = n + 1; k < height; k++) {   // всё что сверху заливаем пустыми
+        if (n == 0 && fract == 0) fract++;      // если нижний перел графика имеет минимальное значение, то рисуем одну полоску, чтобы не было пропусков (с)НР
+        if (fract > 0) lcd.write(fract);        // заполняем дробные ячейки
+        else lcd.write(16);                     // если дробные == 0, заливаем пустой
+        for (byte k = n + 1; k < height; k++) { // всё что сверху заливаем пустыми
           lcd.setCursor(i, (row - k));
           lcd.write(16);
         }
@@ -383,7 +417,7 @@ void loadClock() {
 }
 
 void loadPlot() {
-  lcd.createChar(0, row8);
+  lcd.createChar(0, rowS); // Стрелка вниз для индикатора пределов (с)НР
   lcd.createChar(1, row1);
   lcd.createChar(2, row2);
   lcd.createChar(3, row3);
@@ -420,8 +454,10 @@ void setLED(byte color) {
     case 3:
       if (!BLUE_YELLOW) analogWrite(LED_B, LED_ON);
       else {
-        analogWrite(LED_R, LED_ON - 50);    // чутка уменьшаем красный
-        analogWrite(LED_G, LED_ON);
+        //analogWrite(LED_R, LED_ON - 50);    // чутка уменьшаем красный
+        //analogWrite(LED_G, LED_ON);
+        analogWrite(LED_R, LED_ON - 50 * 0);  // чутка уменьшаем красный (убираем умеьшение красного (с)НР)
+        analogWrite(LED_G, LED_ON / 2);       // Снижаем зеленый, чтобы был больше похож на желтый (с)НР
       }
       break;
   }
