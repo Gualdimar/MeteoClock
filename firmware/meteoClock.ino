@@ -128,6 +128,7 @@ GTimer_ms dayPlotTimer((long)1.6 * 60 * 60 * 1000);   // 1.6 часа
 GTimer_ms plotTimer(240000);
 GTimer_ms predictTimer((long)10 * 60 * 1000);         // 10 минут
 GTimer_ms brightTimer(2000);
+GTimer_ms co2_calibrationTimer((long)30 * 60 * 1000);
 
 #include "GyverButton.h"
 GButton button(BTN_PIN, LOW_PULL, NORM_OPEN);
@@ -138,6 +139,10 @@ int bat_vol;
 int bright, lcd_bright, led_bright;
 // округление
 int light, light_len;
+
+//калибровка датчика СО2
+bool co2_calibration = false;
+int cal_timer;
 
 int8_t hrs, mins, secs;
 byte mode = 0;
@@ -482,6 +487,8 @@ void setup() {
   Serial.begin(9600);
   
   if (VCC_CALIBRATION) vcc_cal();
+  
+  co2_calibrationTimer.stop();
 
   pinMode(BACKLIGHT, OUTPUT);
   pinMode(LED_COM, OUTPUT);
@@ -617,6 +624,10 @@ void loop() {
   if (brightTimer.isReady()) checkBrightness(); // яркость
 #endif
   if (sensorsTimer.isReady()) readSensors();    // читаем показания датчиков с периодом SENS_TIME
+  
+  if (co2_calibration) {
+    if (co2_calibrationTimer.isReady()) co2_calibrate();
+  }
 
 #if (DISPLAY_TYPE == 1)
   if (clockTimer.isReady()) clockTick();        // два раза в секунду пересчитываем время и мигаем точками
@@ -624,7 +635,7 @@ void loop() {
   modesTick();                                  // тут ловим нажатия на кнопку и переключаем режимы
   if (mode == 0) {                                  // в режиме "главного экрана"
     if (drawSensorsTimer.isReady()) drawSensors();  // обновляем показания датчиков на дисплее с периодом SENS_TIME
-  } else {                                          // в любом из графиков
+  } else if (mode < 9) {                                          // в любом из графиков
     if (plotTimer.isReady()) redrawPlot();          // перерисовываем график
   }
 #else

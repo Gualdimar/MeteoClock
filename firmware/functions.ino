@@ -45,7 +45,28 @@ void checkBrightness() {
 void modesTick() {
   button.tick();
   boolean changeFlag = false;
-  if (button.isSingle()) {
+  if (mode == 99 || mode == 98) {
+    if (button.isDouble()) {
+      mode = 0;
+      changeFlag = true;
+    }
+    if (button.hasClicks()) {                 // проверка на наличие нажатий
+      if (button.getClicks() == 4) {
+        if (mode == 99) {
+          co2_calibration = true;
+          cal_timer = 30;
+          co2_calibrationTimer.start();
+          co2_calibrationTimer.reset();
+        } else {
+          co2_calibration = false;
+          co2_calibrationTimer.stop();
+        }
+        mode = 0;
+        changeFlag = true;
+      }
+    }
+  } else {
+    if (button.isSingle()) {
         mode++;
         if (mode > 8) mode = 0;
   #if (CO2_SENSOR == 0 && mode == 1)
@@ -71,11 +92,21 @@ void modesTick() {
       }
       changeFlag = true;
     }
-  if (button.isHolded()) {
-    mode = 0;
-    changeFlag = true;
+    if (button.hasClicks()) {                 // проверка на наличие нажатий
+      if (button.getClicks() == 4 && mode == 2) {
+        if (!co2_calibration) {
+          mode = 99;
+        } else {
+          mode = 98;        
+        }
+        changeFlag = true;
+      }
+    }
+    if (button.isHolded()) {
+      mode = 0;
+      changeFlag = true;
+    }
   }
-
   if (changeFlag) {
     if (mode == 0) {
       lcd.clear();
@@ -83,6 +114,23 @@ void modesTick() {
       drawClock(hrs, mins, 0, 0, 1);
       if (DISPLAY_TYPE == 1) drawData();
       drawSensors();
+      if (co2_calibration) {
+        lcd.setCursor(15, 1);
+        lcd.print("cal" + String(cal_timer));
+      }
+    } else if (mode == 99 || mode == 98) {
+      lcd.clear();
+      if (mode == 99) {
+        lcd.setCursor(4, 0);
+        lcd.print("Proceed with");
+      } else {
+        lcd.setCursor(7, 0);
+        lcd.print("Cancel");      
+      }
+      lcd.setCursor(2, 1);
+      lcd.print("CO2 calibration?");
+      lcd.setCursor(2, 3);
+      lcd.print("(4)Yes     (2)No");
     } else {
       lcd.clear();
       loadPlot();
@@ -271,6 +319,7 @@ void clockTick() {
     if (secs > 59) {      // каждую минуту
       secs = 0;
       mins++;
+      cal_timer--;
       if (mins <= 59 && mode == 0) drawClock(hrs, mins, 0, 0, 1);
     }
     if (mins > 59) {      // каждый час
@@ -285,9 +334,18 @@ void clockTick() {
       if (mode == 0 && DISPLAY_TYPE) drawData();
     }
     if (DISP_MODE == 2 && mode == 0) {
-      lcd.setCursor(16, 1);
-      if (secs < 10) lcd.print(" ");
-      lcd.print(secs);
+      if (co2_calibration) {
+        lcd.setCursor(15, 1);
+        if (cal_timer < 10 && cal_timer >= 0) {
+          lcd.print("cal " + String(cal_timer));
+        } else {
+          lcd.print("cal" + String(cal_timer));
+        }
+      } else {
+        lcd.setCursor(16, 1);
+        if (secs < 10) lcd.print("0");
+        lcd.print(secs);
+      }
     }
   }
   if (mode == 0) drawdots(7, 0, dotFlag);
@@ -329,3 +387,23 @@ long readVcc() { //функция чтения внутреннего опорн
   result = MY_VCC_CONST * 1023 * 1000 / result; // расчёт реального VCC
   return result; // возвращает VCC
 }
+
+void co2_calibrate() {
+  mode = 95;
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("1st calibration now");
+  mhz19.calibrateZero();
+  lcd.setCursor(0, 1);
+  lcd.print("wait 60sec");
+  delay(60000);
+  lcd.setCursor(0, 2);
+  lcd.print("2nd calibration now");
+  mhz19.calibrateZero();  // Just in case
+  co2_calibration = false;
+  co2_calibrationTimer.stop();
+  mhz19.getPPM();
+  lcd.setCursor(0, 3);
+  lcd.print("Bef:" + String(dispCO2) + " Aft:" + String(mhz19.getPPM()));
+}
+
