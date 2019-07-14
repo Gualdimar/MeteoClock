@@ -32,7 +32,7 @@
 #define LED_MODE 0          // тип RGB светодиода: 0 - главный катод, 1 - главный анод
 
 // управление яркостью
-#define BRIGHT_CONTROL 1      // 0/1 - запретить/разрешить управление яркостью (при отключении яркость всегда будет макс.)
+#define BRIGHT_CONTROL 2      // 0 - запретить, яркость всегда будет макс; 1 - управление яркостью по пороговому значенипю(BRIGHT_THRESHOLD); 2 - динамическое управление яркостью
 #define BRIGHT_THRESHOLD 150  // величина сигнала, ниже которой яркость переключится на минимум (0-1023)
 #define LED_BRIGHT_MAX 255    // макс яркость светодиода СО2 (0 - 255)
 #define LED_BRIGHT_MIN 1     // мин яркость светодиода СО2 (0 - 255)
@@ -133,6 +133,11 @@ GTimer_ms brightTimer(2000);
 GButton button(BTN_PIN, LOW_PULL, NORM_OPEN);
 
 int bat_vol;
+
+// датчик освещения
+int bright, lcd_bright, led_bright;
+// округление
+int light, light_len;
 
 int8_t hrs, mins, secs;
 byte mode = 0;
@@ -608,7 +613,9 @@ void setup() {
 }
 
 void loop() {
+#if (BRIGHT_CONTROL != 0)
   if (brightTimer.isReady()) checkBrightness(); // яркость
+#endif
   if (sensorsTimer.isReady()) readSensors();    // читаем показания датчиков с периодом SENS_TIME
 
 #if (DISPLAY_TYPE == 1)

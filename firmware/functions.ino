@@ -1,22 +1,45 @@
 void checkBrightness() {
-  if (analogRead(PHOTO) < BRIGHT_THRESHOLD) {   // если темно
-    analogWrite(BACKLIGHT, LCD_BRIGHT_MIN);
-#if (LED_MODE == 0)
-    LED_ON = (LED_BRIGHT_MIN);
-#else
-    LED_ON = (255 - LED_BRIGHT_MIN);
-#endif
-  } else {                                      // если светло
-    analogWrite(BACKLIGHT, LCD_BRIGHT_MAX);
-#if (LED_MODE == 0)
-    LED_ON = (LED_BRIGHT_MAX);
-#else
-    LED_ON = (255 - LED_BRIGHT_MAX);
-#endif
+  if (BRIGHT_CONTROL == 1) {
+    if (analogRead(PHOTO) < BRIGHT_THRESHOLD) {   // если темно
+      analogWrite(BACKLIGHT, LCD_BRIGHT_MIN);
+      #if (LED_MODE == 0)
+          LED_ON = (LED_BRIGHT_MIN);
+      #else
+          LED_ON = (255 - LED_BRIGHT_MIN);
+      #endif
+    } else {                                      // если светло
+      analogWrite(BACKLIGHT, LCD_BRIGHT_MAX);
+      #if (LED_MODE == 0)
+          LED_ON = (LED_BRIGHT_MAX);
+      #else
+          LED_ON = (255 - LED_BRIGHT_MAX);
+      #endif
+    }
+  } else {
+    light = map(analogRead(PHOTO), 0, 1023, 0, 255);
+  
+    light_len = pow(10, log10(light));
+    bright = round(light / light_len) * light_len;
+    
+    if (bright < LCD_BRIGHT_MIN) lcd_bright = LCD_BRIGHT_MIN;
+    else if (bright > LCD_BRIGHT_MAX) lcd_bright = LCD_BRIGHT_MAX;
+    else lcd_bright = bright;
+    
+    if (bright < LED_BRIGHT_MIN) led_bright = LED_BRIGHT_MIN;
+    else if (bright > LED_BRIGHT_MAX) led_bright = LED_BRIGHT_MAX;
+    else led_bright = bright;
+
+    analogWrite(BACKLIGHT, lcd_bright);
+
+    #if (LED_MODE == 0)
+        LED_ON = (led_bright);
+    #else
+        LED_ON = (255 - led_bright);
+    #endif
   }
   if (dispCO2 < 800) setLED(2);
   else if (dispCO2 < 1200) setLED(3);
-  else if (dispCO2 >= 1200) setLED(1);
+  else if (dispCO2 < 1500) setLED(1);
 }
 
 void modesTick() {
