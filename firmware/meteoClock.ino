@@ -28,19 +28,19 @@
 
 // ------------------------- НАСТРОЙКИ --------------------
 #define RESET_CLOCK 0       // сброс часов на время загрузки прошивки (для модуля с несъёмной батарейкой). Не забудь поставить 0 и прошить ещё раз!
-#define SENS_TIME 30000     // время обновления показаний сенсоров на экране, миллисекунд
+#define SENS_TIME 10000     // время обновления показаний сенсоров на экране, миллисекунд
 #define LED_MODE 0          // тип RGB светодиода: 0 - главный катод, 1 - главный анод
 
 // управление яркостью
 #define BRIGHT_CONTROL 1      // 0/1 - запретить/разрешить управление яркостью (при отключении яркость всегда будет макс.)
 #define BRIGHT_THRESHOLD 150  // величина сигнала, ниже которой яркость переключится на минимум (0-1023)
 #define LED_BRIGHT_MAX 255    // макс яркость светодиода СО2 (0 - 255)
-#define LED_BRIGHT_MIN 10     // мин яркость светодиода СО2 (0 - 255)
+#define LED_BRIGHT_MIN 1     // мин яркость светодиода СО2 (0 - 255)
 #define LCD_BRIGHT_MAX 255    // макс яркость подсветки дисплея (0 - 255)
 #define LCD_BRIGHT_MIN 10     // мин яркость подсветки дисплея (0 - 255)
 
 #define BLUE_YELLOW 1       // жёлтый цвет вместо синего (1 да, 0 нет) но из за особенностей подключения жёлтый не такой яркий
-#define DISP_MODE 1         // в правом верхнем углу отображать: 0 - год, 1 - день недели, 2 - секунды
+#define DISP_MODE 2         // в правом верхнем углу отображать: 0 - год, 1 - день недели, 2 - секунды
 #define WEEK_LANG 1         // язык дня недели: 0 - английский, 1 - русский (транслит)
 #define DEBUG 0             // вывод на дисплей лог инициализации датчиков при запуске. Для дисплея 1602 не работает! Но дублируется через порт!
 #define PRESSURE 1          // 0 - график давления, 1 - график прогноза дождя (вместо давления). Не забудь поправить пределы гроафика
@@ -53,8 +53,8 @@
 #define TEMP_MAX 35
 #define HUM_MIN 0
 #define HUM_MAX 100
-#define PRESS_MIN -100
-#define PRESS_MAX 100
+#define PRESS_MIN 700
+#define PRESS_MAX 800
 #define CO2_MIN 300
 #define CO2_MAX 2000
 
@@ -65,8 +65,8 @@
 // если дисплей не заводится - поменяйте адрес (строка 54)
 
 // пины
-#define BACKLIGHT 10
-#define PHOTO A3
+#define BACKLIGHT 10     // пин подсветки дисплея
+#define PHOTO A3         // пин фоторезистора
 
 #define MHZ_RX 2
 #define MHZ_TX 3
@@ -76,9 +76,6 @@
 #define LED_G 6
 #define LED_B 5
 #define BTN_PIN 4
-
-#define BL_PIN 10     // пин подсветки дисплея
-#define PHOTO_PIN 0   // пин фоторезистора
 
 // библиотеки
 #include <Wire.h>
@@ -184,10 +181,9 @@ void drawDig(byte dig, byte x, byte y) {
       break;
     case 1:
       lcd.setCursor(x + 1, y);
-      lcd.write(1);
       lcd.write(2);
-      lcd.setCursor(x + 2, y + 1);
-      lcd.write(5);
+      lcd.setCursor(x + 1, y + 1);
+      lcd.write(3);
       break;
     case 2:
       lcd.setCursor(x, y);
@@ -260,19 +256,10 @@ void drawDig(byte dig, byte x, byte y) {
       lcd.write(0);
       lcd.write(6);
       lcd.write(2);
-      lcd.setCursor(x + 1, y + 1);
-      lcd.write(4);
-      lcd.write(5);
-      break;
-    case 10:
-      lcd.setCursor(x, y);
-      lcd.write(32);
-      lcd.write(32);
-      lcd.write(32);
       lcd.setCursor(x, y + 1);
-      lcd.write(32);
-      lcd.write(32);
-      lcd.write(32);
+      lcd.write(7);
+      lcd.write(7);
+      lcd.write(5);
       break;
   }
 }
@@ -294,9 +281,7 @@ void drawClock(byte hours, byte minutes, byte x, byte y, boolean dotState) {
   lcd.setCursor(x, y + 1);
   lcd.print("               ");
 
-  //if (hours > 23 || minutes > 59) return;
-  if (hours / 10 == 0) drawDig(10, x, y);
-  else drawDig(hours / 10, x, y);
+  drawDig(hours / 10, x, y);
   drawDig(hours % 10, x + 4, y);
   // тут должны быть точки. Отдельной функцией
   drawDig(minutes / 10, x + 8, y);
@@ -410,10 +395,8 @@ void loadPlot() {
 
 #if (LED_MODE == 0)
 byte LED_ON = (LED_BRIGHT_MAX);
-byte LED_OFF = (LED_BRIGHT_MIN);
 #else
 byte LED_ON = (255 - LED_BRIGHT_MAX);
-byte LED_OFF = (255 - LED_BRIGHT_MIN);
 #endif
 
 void setLED(byte color) {
@@ -452,6 +435,13 @@ void setup() {
   pinMode(LED_R, OUTPUT);
   pinMode(LED_G, OUTPUT);
   pinMode(LED_B, OUTPUT);
+  setLED(0);
+  setLED(1);
+  delay(1000);
+  setLED(2);
+  delay(1000);
+  setLED(3);
+  delay(1000);
   setLED(0);
 
   digitalWrite(LED_COM, LED_MODE);
