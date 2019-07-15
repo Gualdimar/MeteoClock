@@ -367,7 +367,7 @@ void drawPlot(byte pos, byte row, byte width, byte height, int min_val, int max_
     if (plot_array[i] > max_value) max_value = plot_array[i];
     if (plot_array[i] < min_value) min_value = plot_array[i];
   }
-  
+
   // меняем пределы графиков на предельные/фактические значения (в пределах установленных лимитов), одновременно рисуем указатель пределов (стрелочки вверх-вниз) (с)НР
   lcd.setCursor(15, 0);
   if ((MAX_ONDATA & (1 << (stretch - 1))) > 0) {    // побитовое сравнение 1 - растягиваем, 0 - не растягиваем (по указанным пределам) (с)НР
@@ -388,7 +388,7 @@ void drawPlot(byte pos, byte row, byte width, byte height, int min_val, int max_
   lcd.setCursor(15, 2); lcd.write(0b01111100);
 
   if (min_val >= max_val) max_val = min_val + 1;
-  
+
   lcd.setCursor(16, 0); lcd.print(max_value);
   lcd.setCursor(16, 1); lcd.print(label);
   lcd.setCursor(16, 2); lcd.print(plot_array[14]);
@@ -485,9 +485,9 @@ void setLED(byte color) {
 
 void setup() {
   Serial.begin(9600);
-  
+
   if (VCC_CALIBRATION) vcc_cal();
-  
+
   co2_calibrationTimer.stop();
 
   pinMode(BACKLIGHT, OUTPUT);
@@ -624,7 +624,7 @@ void loop() {
   if (brightTimer.isReady()) checkBrightness(); // яркость
 #endif
   if (sensorsTimer.isReady()) readSensors();    // читаем показания датчиков с периодом SENS_TIME
-  
+
   if (co2_calibration) {
     if (co2_calibrationTimer.isReady()) co2_calibrate();
   }

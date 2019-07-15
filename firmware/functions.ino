@@ -2,40 +2,40 @@ void checkBrightness() {
   if (BRIGHT_CONTROL == 1) {
     if (analogRead(PHOTO) < BRIGHT_THRESHOLD) {   // если темно
       analogWrite(BACKLIGHT, LCD_BRIGHT_MIN);
-      #if (LED_MODE == 0)
-          LED_ON = (LED_BRIGHT_MIN);
-      #else
-          LED_ON = (255 - LED_BRIGHT_MIN);
-      #endif
+#if (LED_MODE == 0)
+      LED_ON = (LED_BRIGHT_MIN);
+#else
+      LED_ON = (255 - LED_BRIGHT_MIN);
+#endif
     } else {                                      // если светло
       analogWrite(BACKLIGHT, LCD_BRIGHT_MAX);
-      #if (LED_MODE == 0)
-          LED_ON = (LED_BRIGHT_MAX);
-      #else
-          LED_ON = (255 - LED_BRIGHT_MAX);
-      #endif
+#if (LED_MODE == 0)
+      LED_ON = (LED_BRIGHT_MAX);
+#else
+      LED_ON = (255 - LED_BRIGHT_MAX);
+#endif
     }
   } else {
     light = map(analogRead(PHOTO), 0, 1023, 0, 255);
-  
+
     light_len = pow(10, log10(light));
     bright = round(light / light_len) * light_len;
-    
+
     if (bright < LCD_BRIGHT_MIN) lcd_bright = LCD_BRIGHT_MIN;
     else if (bright > LCD_BRIGHT_MAX) lcd_bright = LCD_BRIGHT_MAX;
     else lcd_bright = bright;
-    
+
     if (bright < LED_BRIGHT_MIN) led_bright = LED_BRIGHT_MIN;
     else if (bright > LED_BRIGHT_MAX) led_bright = LED_BRIGHT_MAX;
     else led_bright = bright;
 
     analogWrite(BACKLIGHT, lcd_bright);
 
-    #if (LED_MODE == 0)
-        LED_ON = (led_bright);
-    #else
-        LED_ON = (255 - led_bright);
-    #endif
+#if (LED_MODE == 0)
+    LED_ON = (led_bright);
+#else
+    LED_ON = (255 - led_bright);
+#endif
   }
   if (dispCO2 < 800) setLED(2);
   else if (dispCO2 < 1200) setLED(3);
@@ -67,12 +67,12 @@ void modesTick() {
     }
   } else {
     if (button.isSingle()) {
-        mode++;
-        if (mode > 8) mode = 0;
-  #if (CO2_SENSOR == 0 && mode == 1)
-        mode = 3;
-  #endif
-        changeFlag = true;
+      mode++;
+      if (mode > 8) mode = 0;
+#if (CO2_SENSOR == 0 && mode == 1)
+      mode = 3;
+#endif
+      changeFlag = true;
     }
     if (button.isDouble()) {                  // двойное нажатие (с)НР ----------------------------
       if (mode > 0) {                         // Меняет пределы графика на установленные/фактические максимумы (с)НР
@@ -97,7 +97,7 @@ void modesTick() {
         if (!co2_calibration) {
           mode = 99;
         } else {
-          mode = 98;        
+          mode = 98;
         }
         changeFlag = true;
       }
@@ -125,7 +125,7 @@ void modesTick() {
         lcd.print("Proceed with");
       } else {
         lcd.setCursor(7, 0);
-        lcd.print("Cancel");      
+        lcd.print("Cancel");
       }
       lcd.setCursor(2, 1);
       lcd.print("CO2 calibration?");
@@ -166,7 +166,7 @@ void readSensors() {
   dispTemp = bme.readTemperature();
   dispHum = bme.readHumidity();
   dispPres = (float)bme.readPressure() * 0.00750062;
-  
+
   for (byte i = 0; i < 10; i++) {
     analogRead(BATTERY);   // отсев первых 10 измерений
   }
@@ -176,12 +176,12 @@ void readSensors() {
   }
   averVoltage /= 10;
   bat_vol = (float)averVoltage * readVcc() / 1023;
-  
-  dispBat = map(bat_vol_f, 3400, 4200, 0, 99);
+
+  dispBat = map(bat_vol, 3400, 4200, 0, 99);
   if (dispBat > 99) {
     dispBat = 99;
   }
-  
+
 #if (CO2_SENSOR == 1)
   dispCO2 = mhz19.getPPM();
 
