@@ -25,7 +25,7 @@ void checkBrightness() {
     else if (bright > LCD_BRIGHT_MAX) lcd_bright = LCD_BRIGHT_MAX;
     else lcd_bright = bright;
 
-    if (bright < LED_BRIGHT_MIN) led_bright = LED_BRIGHT_MIN;
+    if (bright < LED_BRIGHT_MIN || bright == 10) led_bright = LED_BRIGHT_MIN;
     else if (bright > LED_BRIGHT_MAX) led_bright = LED_BRIGHT_MAX;
     else led_bright = bright;
 
@@ -177,7 +177,10 @@ void readSensors() {
   averVoltage /= 10;
   bat_vol = (float)averVoltage * readVcc() / 1023;
 
-  dispBat = map(bat_vol, 3400, 4200, 0, 99);
+  bat_vol_f = filter_k * bat_vol + (1 - filter_k) * bat_old;
+  bat_old = bat_vol_f;
+  dispBat = map(bat_vol_f, 3400, 4200, 0, 99);
+  
   if (dispBat > 99) {
     dispBat = 99;
   }
@@ -406,4 +409,3 @@ void co2_calibrate() {
   lcd.setCursor(0, 3);
   lcd.print("Bef:" + String(dispCO2) + " Aft:" + String(mhz19.getPPM()));
 }
-

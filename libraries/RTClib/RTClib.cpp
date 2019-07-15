@@ -1,7 +1,13 @@
 // Code by JeeLabs http://news.jeelabs.org/code/
 // Released to the public domain! Enjoy!
 
+#ifdef __AVR_ATtiny85__
+ #include <TinyWireM.h>
+ #define Wire TinyWireM
+#else
 #include <Wire.h>
+#endif
+
 #include "RTClib.h"
 #ifdef __AVR__
  #include <avr/pgmspace.h>
@@ -131,9 +137,9 @@ static uint8_t conv2d(const char* p) {
 DateTime::DateTime (const char* date, const char* time) {
     // sample input: date = "Dec 26 2009", time = "12:34:56"
     yOff = conv2d(date + 9);
-    // Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec 
+    // Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec
     switch (date[0]) {
-        case 'J': m = date[1] == 'a' ? 1 : m = date[2] == 'n' ? 6 : 7; break;
+        case 'J': m = (date[1] == 'a') ? 1 : ((date[2] == 'n') ? 6 : 7); break;
         case 'F': m = 2; break;
         case 'A': m = date[2] == 'r' ? 4 : 8; break;
         case 'M': m = date[2] == 'r' ? 3 : 5; break;
@@ -158,7 +164,7 @@ DateTime::DateTime (const __FlashStringHelper* date, const __FlashStringHelper* 
     yOff = conv2d(buff + 9);
     // Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec
     switch (buff[0]) {
-        case 'J': m = buff[1] == 'a' ? 1 : m = buff[2] == 'n' ? 6 : 7; break;
+        case 'J': m = (buff[1] == 'a') ? 1 : ((buff[2] == 'n') ? 6 : 7); break;
         case 'F': m = 2; break;
         case 'A': m = buff[2] == 'r' ? 4 : 8; break;
         case 'M': m = buff[2] == 'r' ? 3 : 5; break;
@@ -174,7 +180,7 @@ DateTime::DateTime (const __FlashStringHelper* date, const __FlashStringHelper* 
     ss = conv2d(buff + 6);
 }
 
-uint8_t DateTime::dayOfTheWeek() const {    
+uint8_t DateTime::dayOfTheWeek() const {
     uint16_t day = date2days(yOff, m, d);
     return (day + 6) % 7; // Jan 1, 2000 is a Saturday, i.e. returns 6
 }
@@ -205,6 +211,35 @@ DateTime DateTime::operator-(const TimeSpan& span) {
 
 TimeSpan DateTime::operator-(const DateTime& right) {
   return TimeSpan(unixtime()-right.unixtime());
+}
+
+bool DateTime::operator<(const DateTime& right) const {
+  return unixtime() < right.unixtime();
+}
+
+bool DateTime::operator==(const DateTime& right) const {
+  return unixtime() == right.unixtime();
+}
+
+//ISO 8601 Timestamp
+String DateTime::timestamp(timestampOpt opt){
+  char buffer[20];
+
+  //Generate timestamp according to opt
+  switch(opt){
+    case TIMESTAMP_TIME:
+    //Only time
+    sprintf(buffer, "%02d:%02d:%02d", hh, mm, ss);
+    break;
+    case TIMESTAMP_DATE:
+    //Only date
+    sprintf(buffer, "%d-%02d-%02d", 2000+yOff, m, d);
+    break;
+    default:
+    //Full
+    sprintf(buffer, "%d-%02d-%02dT%02d:%02d:%02d", 2000+yOff, m, d, hh, mm, ss);
+  }
+  return String(buffer);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -266,7 +301,7 @@ void RTC_DS1307::adjust(const DateTime& dt) {
 
 DateTime RTC_DS1307::now() {
   Wire.beginTransmission(DS1307_ADDRESS);
-  Wire._I2C_WRITE((byte)0);	
+  Wire._I2C_WRITE((byte)0);
   Wire.endTransmission();
 
   Wire.requestFrom(DS1307_ADDRESS, 7);
@@ -277,7 +312,7 @@ DateTime RTC_DS1307::now() {
   uint8_t d = bcd2bin(Wire._I2C_READ());
   uint8_t m = bcd2bin(Wire._I2C_READ());
   uint16_t y = bcd2bin(Wire._I2C_READ()) + 2000;
-  
+
   return DateTime (y, m, d, hh, mm, ss);
 }
 
@@ -287,7 +322,7 @@ Ds1307SqwPinMode RTC_DS1307::readSqwPinMode() {
   Wire.beginTransmission(DS1307_ADDRESS);
   Wire._I2C_WRITE(DS1307_CONTROL);
   Wire.endTransmission();
-  
+
   Wire.requestFrom((uint8_t)DS1307_ADDRESS, (uint8_t)1);
   mode = Wire._I2C_READ();
 
@@ -307,7 +342,7 @@ void RTC_DS1307::readnvram(uint8_t* buf, uint8_t size, uint8_t address) {
   Wire.beginTransmission(DS1307_ADDRESS);
   Wire._I2C_WRITE(addrByte);
   Wire.endTransmission();
-  
+
   Wire.requestFrom((uint8_t) DS1307_ADDRESS, size);
   for (uint8_t pos = 0; pos < size; ++pos) {
     buf[pos] = Wire._I2C_READ();
@@ -337,17 +372,55 @@ void RTC_DS1307::writenvram(uint8_t address, uint8_t data) {
 ////////////////////////////////////////////////////////////////////////////////
 // RTC_Millis implementation
 
-long RTC_Millis::offset = 0;
+// Alignment between the milis() timescale and the Unix timescale. These
+// two variables are updated on each call to now(), which prevents
+// rollover issues. Note that lastMillis is **not** the millis() value
+// of the last call to now(): it's the millis() value corresponding to
+// the last **full second** of Unix time.
+uint32_t RTC_Millis::lastMillis;
+uint32_t RTC_Millis::lastUnix;
 
 void RTC_Millis::adjust(const DateTime& dt) {
-    offset = dt.unixtime() - millis() / 1000;
+  lastMillis = millis();
+  lastUnix = dt.unixtime();
 }
 
+// Note that computing (millis() - lastMillis) is rollover-safe as long
+// as this method is called at least once every 49.7 days.
 DateTime RTC_Millis::now() {
-  return (uint32_t)(offset + millis() / 1000);
+  uint32_t elapsedSeconds = (millis() - lastMillis) / 1000;
+  lastMillis += elapsedSeconds * 1000;
+  lastUnix += elapsedSeconds;
+  return lastUnix;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// RTC_Micros implementation
+
+// Number of microseconds reported by micros() per "true" (calibrated)
+// second.
+uint32_t RTC_Micros::microsPerSecond = 1000000;
+
+// The timing logic is identical to RTC_Millis.
+uint32_t RTC_Micros::lastMicros;
+uint32_t RTC_Micros::lastUnix;
+
+void RTC_Micros::adjust(const DateTime& dt) {
+  lastMicros = micros();
+  lastUnix = dt.unixtime();
+}
+
+// A positive adjustment makes the clock faster.
+void RTC_Micros::adjustDrift(int ppm) {
+  microsPerSecond = 1000000 - ppm;
+}
+
+DateTime RTC_Micros::now() {
+  uint32_t elapsedSeconds = (micros() - lastMicros) / microsPerSecond;
+  lastMicros += elapsedSeconds * microsPerSecond;
+  lastUnix += elapsedSeconds;
+  return lastUnix;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // RTC_PCF8563 implementation
@@ -388,7 +461,7 @@ void RTC_PCF8523::adjust(const DateTime& dt) {
 
 DateTime RTC_PCF8523::now() {
   Wire.beginTransmission(PCF8523_ADDRESS);
-  Wire._I2C_WRITE((byte)3);	
+  Wire._I2C_WRITE((byte)3);
   Wire.endTransmission();
 
   Wire.requestFrom(PCF8523_ADDRESS, 7);
@@ -399,7 +472,7 @@ DateTime RTC_PCF8523::now() {
   Wire._I2C_READ();  // skip 'weekdays'
   uint8_t m = bcd2bin(Wire._I2C_READ());
   uint16_t y = bcd2bin(Wire._I2C_READ()) + 2000;
-  
+
   return DateTime (y, m, d, hh, mm, ss);
 }
 
@@ -409,7 +482,7 @@ Pcf8523SqwPinMode RTC_PCF8523::readSqwPinMode() {
   Wire.beginTransmission(PCF8523_ADDRESS);
   Wire._I2C_WRITE(PCF8523_CLKOUTCONTROL);
   Wire.endTransmission();
-  
+
   Wire.requestFrom((uint8_t)PCF8523_ADDRESS, (uint8_t)1);
   mode = Wire._I2C_READ();
 
@@ -422,6 +495,16 @@ void RTC_PCF8523::writeSqwPinMode(Pcf8523SqwPinMode mode) {
   Wire.beginTransmission(PCF8523_ADDRESS);
   Wire._I2C_WRITE(PCF8523_CLKOUTCONTROL);
   Wire._I2C_WRITE(mode << 3);
+  Wire.endTransmission();
+}
+
+void RTC_PCF8523::calibrate(Pcf8523OffsetMode mode, int8_t offset) {
+  uint8_t reg = (uint8_t) offset & 0x7F;
+  reg |= mode;
+
+  Wire.beginTransmission(PCF8523_ADDRESS);
+  Wire._I2C_WRITE(PCF8523_OFFSET);
+  Wire._I2C_WRITE(reg);
   Wire.endTransmission();
 }
 
@@ -459,7 +542,7 @@ void RTC_DS3231::adjust(const DateTime& dt) {
 
 DateTime RTC_DS3231::now() {
   Wire.beginTransmission(DS3231_ADDRESS);
-  Wire._I2C_WRITE((byte)0);	
+  Wire._I2C_WRITE((byte)0);
   Wire.endTransmission();
 
   Wire.requestFrom(DS3231_ADDRESS, 7);
@@ -470,7 +553,7 @@ DateTime RTC_DS3231::now() {
   uint8_t d = bcd2bin(Wire._I2C_READ());
   uint8_t m = bcd2bin(Wire._I2C_READ());
   uint16_t y = bcd2bin(Wire._I2C_READ()) + 2000;
-  
+
   return DateTime (y, m, d, hh, mm, ss);
 }
 
@@ -480,7 +563,7 @@ Ds3231SqwPinMode RTC_DS3231::readSqwPinMode() {
   Wire.beginTransmission(DS3231_ADDRESS);
   Wire._I2C_WRITE(DS3231_CONTROL);
   Wire.endTransmission();
-  
+
   Wire.requestFrom((uint8_t)DS3231_ADDRESS, (uint8_t)1);
   mode = Wire._I2C_READ();
 
@@ -499,8 +582,27 @@ void RTC_DS3231::writeSqwPinMode(Ds3231SqwPinMode mode) {
     ctrl |= 0x04; // turn on INTCN
   } else {
     ctrl |= mode;
-  } 
+  }
   write_i2c_register(DS3231_ADDRESS, DS3231_CONTROL, ctrl);
 
   //Serial.println( read_i2c_register(DS3231_ADDRESS, DS3231_CONTROL), HEX);
+}
+
+float RTC_DS3231::getTemperature()
+{
+  uint8_t msb, lsb;
+  Wire.beginTransmission(DS3231_ADDRESS);
+  Wire._I2C_WRITE(DS3231_TEMPERATUREREG);
+  Wire.endTransmission();
+
+  Wire.requestFrom(DS3231_ADDRESS, 2);
+  msb = Wire._I2C_READ();
+  lsb = Wire._I2C_READ();
+
+//  Serial.print("msb=");
+//  Serial.print(msb,HEX);
+//  Serial.print(", lsb=");
+//  Serial.println(lsb,HEX);
+
+  return (float) msb + (lsb >> 6) * 0.25f;
 }

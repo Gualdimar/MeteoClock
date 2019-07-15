@@ -11,6 +11,7 @@ class TimeSpan;
 #define PCF8523_ADDRESS       0x68
 #define PCF8523_CLKOUTCONTROL 0x0F
 #define PCF8523_CONTROL_3     0x02
+#define PCF8523_OFFSET        0x0E
 
 #define DS1307_ADDRESS  0x68
 #define DS1307_CONTROL  0x07
@@ -19,6 +20,7 @@ class TimeSpan;
 #define DS3231_ADDRESS  0x68
 #define DS3231_CONTROL  0x0E
 #define DS3231_STATUSREG 0x0F
+#define DS3231_TEMPERATUREREG	0x11
 
 #define SECONDS_PER_DAY 86400L
 
@@ -29,9 +31,9 @@ class TimeSpan;
 // Simple general-purpose date/time class (no TZ / DST / leap second handling!)
 class DateTime {
 public:
-    DateTime (uint32_t t =0);
+    DateTime (uint32_t t = SECONDS_FROM_1970_TO_2000);
     DateTime (uint16_t year, uint8_t month, uint8_t day,
-                uint8_t hour =0, uint8_t min =0, uint8_t sec =0);
+                uint8_t hour = 0, uint8_t min = 0, uint8_t sec = 0);
     DateTime (const DateTime& copy);
     DateTime (const char* date, const char* time);
     DateTime (const __FlashStringHelper* date, const __FlashStringHelper* time);
@@ -47,10 +49,22 @@ public:
     long secondstime() const;   
     // 32-bit times as seconds since 1/1/1970
     uint32_t unixtime(void) const;
+    
+    //ISO 8601 Timestamp function
+    enum timestampOpt{
+        TIMESTAMP_FULL, TIMESTAMP_TIME, TIMESTAMP_DATE
+    };
+    String timestamp(timestampOpt opt = TIMESTAMP_FULL);
 
     DateTime operator+(const TimeSpan& span);
     DateTime operator-(const TimeSpan& span);
     TimeSpan operator-(const DateTime& right);
+    bool operator<(const DateTime& right) const;
+    bool operator>(const DateTime& right) const  { return right < *this; }
+    bool operator<=(const DateTime& right) const { return !(*this > right); }
+    bool operator>=(const DateTime& right) const { return !(*this < right); }
+    bool operator==(const DateTime& right) const;
+    bool operator!=(const DateTime& right) const { return !(*this == right); }
 
 protected:
     uint8_t yOff, m, d, hh, mm, ss;
@@ -103,11 +117,14 @@ public:
     static DateTime now();
     static Ds3231SqwPinMode readSqwPinMode();
     static void writeSqwPinMode(Ds3231SqwPinMode mode);
+	static float getTemperature();		// in Celcius degree
 };
 
 
 // RTC based on the PCF8523 chip connected via I2C and the Wire library
 enum Pcf8523SqwPinMode { PCF8523_OFF = 7, PCF8523_SquareWave1HZ = 6, PCF8523_SquareWave32HZ = 5, PCF8523_SquareWave1kHz = 4, PCF8523_SquareWave4kHz = 3, PCF8523_SquareWave8kHz = 2, PCF8523_SquareWave16kHz = 1, PCF8523_SquareWave32kHz = 0 };
+
+enum Pcf8523OffsetMode { PCF8523_TwoHours = 0x00, PCF8523_OneMinute = 0x80 };
 
 class RTC_PCF8523 {
 public:
@@ -118,10 +135,11 @@ public:
 
     Pcf8523SqwPinMode readSqwPinMode();
     void writeSqwPinMode(Pcf8523SqwPinMode mode);
+    void calibrate(Pcf8523OffsetMode mode, int8_t offset);
 };
 
 // RTC using the internal millis() clock, has to be initialized before use
-// NOTE: this clock won't be correct once the millis() timer rolls over (>49d?)
+// NOTE: this is immune to millis() rollover events
 class RTC_Millis {
 public:
     static void begin(const DateTime& dt) { adjust(dt); }
@@ -129,7 +147,26 @@ public:
     static DateTime now();
 
 protected:
-    static long offset;
+    static uint32_t lastUnix;
+    static uint32_t lastMillis;
+};
+
+// RTC using the internal micros() clock, has to be initialized before
+// use. Unlike RTC_Millis, this can be tuned in order to compensate for
+// the natural drift of the system clock. Note that now() has to be
+// called more frequently than the micros() rollover period, which is
+// approximately 71.6 minutes.
+class RTC_Micros {
+public:
+    static void begin(const DateTime& dt) { adjust(dt); }
+    static void adjust(const DateTime& dt);
+    static void adjustDrift(int ppm);
+    static DateTime now();
+
+protected:
+    static uint32_t microsPerSecond;
+    static uint32_t lastUnix;
+    static uint32_t lastMicros;
 };
 
 #endif // _RTCLIB_H_

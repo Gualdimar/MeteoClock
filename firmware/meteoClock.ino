@@ -133,7 +133,8 @@ GTimer_ms co2_calibrationTimer((long)30 * 60 * 1000);
 #include "GyverButton.h"
 GButton button(BTN_PIN, LOW_PULL, NORM_OPEN);
 
-int bat_vol;
+int bat_vol, bat_old, bat_vol_f;
+float filter_k = 0.04;
 
 // датчик освещения
 int bright, lcd_bright, led_bright;
@@ -148,14 +149,14 @@ int8_t hrs, mins, secs;
 byte mode = 0;
 /*
   0 часы и данные
-  1 график температуры за час
-  2 график температуры за сутки
-  3 график влажности за час
-  4 график влажности за сутки
-  5 график давления за час
-  6 график давления за сутки
-  7 график углекислого за час
-  8 график углекислого за сутки
+  1 график углекислого за час
+  2 график углекислого за сутки
+  3 график температуры за час
+  4 график температуры за сутки
+  5 график влажности за час
+  6 график влажности за сутки
+  7 график давления за час
+  8 график давления за сутки
 */
 
 // переменные для вывода
@@ -487,6 +488,8 @@ void setup() {
   Serial.begin(9600);
 
   if (VCC_CALIBRATION) vcc_cal();
+
+  bat_old = analogRead(BATTERY) * readVcc() / 1023;
 
   co2_calibrationTimer.stop();
 
