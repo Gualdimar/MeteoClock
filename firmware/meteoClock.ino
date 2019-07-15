@@ -35,7 +35,7 @@
 #define BRIGHT_CONTROL 2      // 0 - запретить, яркость всегда будет макс; 1 - управление яркостью по пороговому значенипю(BRIGHT_THRESHOLD); 2 - динамическое управление яркостью
 #define BRIGHT_THRESHOLD 150  // величина сигнала, ниже которой яркость переключится на минимум (0-1023)
 #define LED_BRIGHT_MAX 255    // макс яркость светодиода СО2 (0 - 255)
-#define LED_BRIGHT_MIN 1     // мин яркость светодиода СО2 (0 - 255)
+#define LED_BRIGHT_MIN 2     // мин яркость светодиода СО2 (0 - 255)
 #define LCD_BRIGHT_MAX 255    // макс яркость подсветки дисплея (0 - 255)
 #define LCD_BRIGHT_MIN 10     // мин яркость подсветки дисплея (0 - 255)
 
@@ -91,6 +91,7 @@ byte MIN_ONDATA = 1 + 2 + 16 + 32; // минимальные показания 
 #define LED_R 9
 #define LED_G 6
 #define LED_B 5
+
 #define BTN_PIN 4
 
 #define BATTERY A7
@@ -133,13 +134,12 @@ GTimer_ms co2_calibrationTimer((long)30 * 60 * 1000);
 #include "GyverButton.h"
 GButton button(BTN_PIN, LOW_PULL, NORM_OPEN);
 
+// вольтметр
 int bat_vol, bat_old, bat_vol_f;
 float filter_k = 0.04;
 
 // датчик освещения
-int bright, lcd_bright, led_bright;
-// округление
-int light, light_len;
+int light, bright, lcd_bright, led_bright;
 
 //калибровка датчика СО2
 bool co2_calibration = false;

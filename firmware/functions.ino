@@ -18,16 +18,20 @@ void checkBrightness() {
   } else {
     light = map(analogRead(PHOTO), 0, 1023, 0, 255);
 
-    light_len = pow(10, log10(light));
-    bright = round(light / light_len) * light_len;
+    bright = round(light / 10) * 10;
 
     if (bright < LCD_BRIGHT_MIN) lcd_bright = LCD_BRIGHT_MIN;
     else if (bright > LCD_BRIGHT_MAX) lcd_bright = LCD_BRIGHT_MAX;
     else lcd_bright = bright;
 
-    if (bright < LED_BRIGHT_MIN || bright == 10) led_bright = LED_BRIGHT_MIN;
+    if (bright < LED_BRIGHT_MIN) led_bright = LED_BRIGHT_MIN;
     else if (bright > LED_BRIGHT_MAX) led_bright = LED_BRIGHT_MAX;
     else led_bright = bright;
+
+    //Serial.print("resistor: "); Serial.println(light);
+    //Serial.print("bright: "); Serial.println(bright);
+    //Serial.print("LCD: "); Serial.println(lcd_bright);
+    //Serial.print("LED: "); Serial.println(led_bright);
 
     analogWrite(BACKLIGHT, lcd_bright);
 
@@ -45,6 +49,7 @@ void checkBrightness() {
 void modesTick() {
   button.tick();
   boolean changeFlag = false;
+
   if (mode == 99 || mode == 98) {
     if (button.isDouble()) {
       mode = 0;
@@ -177,13 +182,18 @@ void readSensors() {
   averVoltage /= 10;
   bat_vol = (float)averVoltage * readVcc() / 1023;
 
+  //bat_vol = analogRead(BATTERY) * readVcc() / 1023;
   bat_vol_f = filter_k * bat_vol + (1 - filter_k) * bat_old;
   bat_old = bat_vol_f;
   dispBat = map(bat_vol_f, 3400, 4200, 0, 99);
-  
+
   if (dispBat > 99) {
     dispBat = 99;
   }
+
+  //Serial.print("bat_vol is: "); Serial.println(bat_vol);
+  //Serial.print("VCC is: "); Serial.println(dispBat);
+  //Serial.print("VCC % is: "); Serial.println(map(dispBat, 3600, 4200, 0, 100));
 
 #if (CO2_SENSOR == 1)
   dispCO2 = mhz19.getPPM();
