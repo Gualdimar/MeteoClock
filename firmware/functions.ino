@@ -16,7 +16,15 @@ void checkBrightness() {
 #endif
     }
   } else {
-    light = map(analogRead(PHOTO), 0, 1023, 0, 255);
+    
+    int averLight = 0;
+    for (byte i = 0; i < 10; i++) {
+      averLight += analogRead(PHOTO);
+    }
+    averLight /= 10;
+    light = map(averLight, 0, 1023, 0, 255);
+
+    //light = map(analogRead(PHOTO), 0, 1023, 0, 255);
 
     bright = round(light / 10) * 10;
 
@@ -415,7 +423,9 @@ void co2_calibrate() {
   mhz19.calibrateZero();  // Just in case
   co2_calibration = false;
   co2_calibrationTimer.stop();
+  delay(500);
   mhz19.getPPM();
+  delay(500);
   lcd.setCursor(0, 3);
   lcd.print("Bef:" + String(dispCO2) + " Aft:" + String(mhz19.getPPM()));
 }

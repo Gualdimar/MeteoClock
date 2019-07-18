@@ -37,7 +37,12 @@
 #define LED_BRIGHT_MAX 255    // макс яркость светодиода СО2 (0 - 255)
 #define LED_BRIGHT_MIN 2     // мин яркость светодиода СО2 (0 - 255)
 #define LCD_BRIGHT_MAX 255    // макс яркость подсветки дисплея (0 - 255)
-#define LCD_BRIGHT_MIN 10     // мин яркость подсветки дисплея (0 - 255)
+#define LCD_BRIGHT_MIN 5     // мин яркость подсветки дисплея (0 - 255)
+
+// отключение диода в заданный промежуток времени
+#define LED_TIME 1          // 0/1 - вкл/откл отключение диода
+#define LED_TIME_ON 8       // час, после которого диод загорится
+#define LED_TIME_OFF 22     // час, после которого диод потухнет
 
 #define BLUE_YELLOW 1       // жёлтый цвет вместо синего (1 да, 0 нет) но из за особенностей подключения жёлтый не такой яркий
 #define DISP_MODE 2         // в правом верхнем углу отображать: 0 - год, 1 - день недели, 2 - секунды
@@ -465,22 +470,24 @@ void setLED(byte color) {
     analogWrite(LED_G, 255);
     analogWrite(LED_B, 255);
   }
-  switch (color) {    // 0 выкл, 1 красный, 2 зелёный, 3 синий (или жёлтый)
-    case 0:
-      break;
-    case 1: analogWrite(LED_R, LED_ON);
-      break;
-    case 2: analogWrite(LED_G, LED_ON);
-      break;
-    case 3:
-      if (!BLUE_YELLOW) analogWrite(LED_B, LED_ON);
-      else {
-        //analogWrite(LED_R, LED_ON - 50);    // чутка уменьшаем красный
-        //analogWrite(LED_G, LED_ON);
-        analogWrite(LED_R, LED_ON - 50 * 0);  // чутка уменьшаем красный (убираем умеьшение красного (с)НР)
-        analogWrite(LED_G, LED_ON / 2);       // Снижаем зеленый, чтобы был больше похож на желтый (с)НР
-      }
-      break;
+  if ((LED_TIME == 0) ||  (LED_TIME_ON <= hrs && LED_TIME_OFF > hrs)) {
+    switch (color) {    // 0 выкл, 1 красный, 2 зелёный, 3 синий (или жёлтый)
+      case 0:
+        break;
+      case 1: analogWrite(LED_R, LED_ON);
+        break;
+      case 2: analogWrite(LED_G, LED_ON);
+        break;
+      case 3:
+        if (!BLUE_YELLOW) analogWrite(LED_B, LED_ON);
+        else {
+          //analogWrite(LED_R, LED_ON - 50);    // чутка уменьшаем красный
+          //analogWrite(LED_G, LED_ON);
+          analogWrite(LED_R, LED_ON);  // убираем умеьшение красного (с)НР
+          analogWrite(LED_G, LED_ON / 2);       // Снижаем зеленый, чтобы был больше похож на желтый (с)НР
+        }
+        break;
+    }
   }
 }
 
@@ -498,14 +505,6 @@ void setup() {
   pinMode(LED_R, OUTPUT);
   pinMode(LED_G, OUTPUT);
   pinMode(LED_B, OUTPUT);
-  setLED(0);
-  setLED(1);
-  delay(1000);
-  setLED(2);
-  delay(1000);
-  setLED(3);
-  delay(1000);
-  setLED(0);
 
   digitalWrite(LED_COM, LED_MODE);
   analogWrite(BACKLIGHT, LCD_BRIGHT_MAX);
@@ -612,6 +611,15 @@ void setup() {
     pressure_array[i] = Pressure;  // забить весь массив текущим давлением
     time_array[i] = i;             // забить массив времени числами 0 - 5
   }
+
+  setLED(0);
+  setLED(1);
+  delay(1000);
+  setLED(2);
+  delay(1000);
+  setLED(3);
+  delay(1000);
+  setLED(0);
 
   if (DISPLAY_TYPE == 1) {
     loadClock();
