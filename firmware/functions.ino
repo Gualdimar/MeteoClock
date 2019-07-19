@@ -16,7 +16,7 @@ void checkBrightness() {
 #endif
     }
   } else {
-    
+
     int averLight = 0;
     for (byte i = 0; i < 10; i++) {
       averLight += analogRead(PHOTO);
@@ -180,6 +180,7 @@ void readSensors() {
   dispHum = bme.readHumidity();
   dispPres = (float)bme.readPressure() * 0.00750062;
 
+#if (BATTERY_LEVEL == 1)
   for (byte i = 0; i < 10; i++) {
     analogRead(BATTERY);   // отсев первых 10 измерений
   }
@@ -202,6 +203,7 @@ void readSensors() {
   //Serial.print("bat_vol is: "); Serial.println(bat_vol);
   //Serial.print("VCC is: "); Serial.println(dispBat);
   //Serial.print("VCC % is: "); Serial.println(map(dispBat, 3600, 4200, 0, 100));
+#endif
 
 #if (CO2_SENSOR == 1)
   dispCO2 = mhz19.getPPM();
@@ -226,6 +228,7 @@ void drawSensors() {
   if (dispCO2 < 1000) lcd.print(" ");
 #endif
 
+#if (BATTERY_LEVEL == 1)
   lcd.setCursor(0, 3);
   lcd.print(String(dispPres) + "mm  rain ");
   lcd.print(F("       "));
@@ -233,6 +236,13 @@ void drawSensors() {
   lcd.print(String(dispRain) + "%");
   lcd.setCursor(17, 3);
   lcd.print(String(dispBat) + "%");
+#else
+  lcd.setCursor(0, 3);
+  lcd.print(String(dispPres) + " mm  rain ");
+  lcd.print(F("       "));
+  lcd.setCursor(13, 3);
+  lcd.print(String(dispRain) + "%");
+#endif
 
 #else
   // дисплей 1602
@@ -376,6 +386,7 @@ void clockTick() {
   }
 }
 
+#if (BATTERY_LEVEL == 1)
 void vcc_cal() {
   //--------калибровка----------
   MY_VCC_CONST = 1.1;
@@ -408,6 +419,7 @@ long readVcc() { //функция чтения внутреннего опорн
   result = MY_VCC_CONST * 1023 * 1000 / result; // расчёт реального VCC
   return result; // возвращает VCC
 }
+#endif
 
 void co2_calibrate() {
   mode = 95;

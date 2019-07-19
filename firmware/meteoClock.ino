@@ -52,6 +52,8 @@
 #define CO2_SENSOR 1        // включить или выключить поддержку/вывод с датчика СО2 (1 вкл, 0 выкл)
 #define DISPLAY_TYPE 1      // тип дисплея: 1 - 2004 (большой), 0 - 1602 (маленький)
 #define DISPLAY_ADDR 0x27   // адрес платы дисплея: 0x27 или 0x3f. Если дисплей не работает - смени адрес! На самом дисплее адрес не указан
+#define BME_ADDR 0x76       // адрес сенсора BME280: 0x76 или 0x77
+#define BATTERY_LEVEL 1     // 0/1 - откл./вкл. отображение заряда аккумулятора
 
 #define VCC_CALIBRATION 0 // калибровка вольтметра
 
@@ -78,10 +80,6 @@ byte MIN_ONDATA = 1 + 2 + 16 + 32; // минимальные показания 
    для выборочных графиков значения нужно сложить (с)НР
    например: для изменения пределов у графиков суточной температуры и суточного СО2 складываем 2 + 128 и устанавливаем значение 130 (можно ставить сумму) (с)НР
 */
-
-// адрес BME280 жёстко задан в файле библиотеки Adafruit_BME280.h
-// стоковый адрес был 0x77, у китайского модуля адрес 0x76.
-// Так что если юзаете НЕ библиотеку из архива - не забудьте поменять
 
 // если дисплей не заводится - поменяйте адрес (строка 54)
 
@@ -140,8 +138,10 @@ GTimer_ms co2_calibrationTimer((long)30 * 60 * 1000);
 GButton button(BTN_PIN, LOW_PULL, NORM_OPEN);
 
 // вольтметр
+#if (BATTERY_LEVEL == 1)
 int bat_vol, bat_old, bat_vol_f;
 float filter_k = 0.04;
+#endif
 
 // датчик освещения
 int light, bright, lcd_bright, led_bright;
@@ -494,9 +494,11 @@ void setLED(byte color) {
 void setup() {
   Serial.begin(9600);
 
+#if (BATTERY_LEVEL == 1)
   if (VCC_CALIBRATION) vcc_cal();
 
   bat_old = analogRead(BATTERY) * readVcc() / 1023;
+#endif
 
   co2_calibrationTimer.stop();
 
@@ -555,7 +557,7 @@ void setup() {
   lcd.print(F("BME280... "));
   Serial.print(F("BME280... "));
   delay(50);
-  if (bme.begin(&Wire)) {
+  if (bme.begin(BME_ADDR, &Wire)) {
     lcd.print(F("OK"));
     Serial.println(F("OK"));
   } else {
@@ -588,7 +590,7 @@ void setup() {
   mhz19.setAutoCalibration(false);
 #endif
   rtc.begin();
-  bme.begin(&Wire);
+  bme.begin(BME_ADDR, &Wire);
 #endif
 
   bme.setSampling(Adafruit_BME280::MODE_FORCED,
@@ -615,9 +617,9 @@ void setup() {
   setLED(0);
   setLED(1);
   delay(1000);
-  setLED(2);
-  delay(1000);
   setLED(3);
+  delay(1000);
+  setLED(2);
   delay(1000);
   setLED(0);
 
