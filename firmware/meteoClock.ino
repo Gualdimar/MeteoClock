@@ -43,7 +43,7 @@
 #define LED_TIME 2          // 0/1 - вкл/откл отключение диода по времени, 2 - отключение диода по времени, если яркость ниже LED_ON_THRESHOLD
 #define LED_TIME_ON 8       // час, после которого диод загорится
 #define LED_TIME_OFF 22     // час, после которого диод потухнет
-#define LED_ON_THRESHOLD 50 // уровень яркости, ниже которого диод не будет отключаться
+#define LED_ON_THRESHOLD 30 // уровень яркости, ниже которого диод не будет отключаться
 
 #define BLUE_YELLOW 1       // жёлтый цвет вместо синего (1 да, 0 нет) но из за особенностей подключения жёлтый не такой яркий
 #define DISP_MODE 2         // в правом верхнем углу отображать: 0 - год, 1 - день недели, 2 - секунды
@@ -471,7 +471,7 @@ void setLED(byte color) {
     analogWrite(LED_G, 255);
     analogWrite(LED_B, 255);
   }
-  if ((LED_TIME == 0) ||  (LED_TIME_ON <= hrs && LED_TIME_OFF > hrs) || (LED_TIME == 2 && LED_ON > LED_ON_THRESHOLD)) {
+  if ((LED_TIME == 0) ||  (LED_TIME_ON <= hrs && LED_TIME_OFF > hrs) || (LED_TIME == 2 && LED_ON >= LED_ON_THRESHOLD)) {
     switch (color) {    // 0 выкл, 1 красный, 2 зелёный, 3 синий (или жёлтый)
       case 0:
         break;
